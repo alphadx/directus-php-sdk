@@ -405,4 +405,65 @@ class Directus
     {
         return $this->strip_headers($this->make_call($uri, $data, 'DELETE'));
     }
+
+    // Get snapshot model of base project
+    public function getSnapshot()
+    {
+        $url = '/schema/snapshot';
+        return $this->strip_headers($this->make_call($url, null, 'GET'));
+    }
+
+    // Get difference between base model and file model
+    public function getDiff($snapshot)
+    {
+        $url = '/schema/diff';
+        return $this->strip_headers($this->make_call($url, $snapshot, 'POST'));
+    }
+
+    // Apply differences in the base model
+    public function applyDiff($diff)
+    {
+        $url = '/schema/apply';
+        print_r($diff);
+        return $this->strip_headers($this->make_call($url, $diff, 'POST'));
+    }
+
+    // Generate a version file
+    public function generateVersionFile(string $filename)
+    {
+        $snapshot = $this->getSnapshot();
+        //JSON format
+        file_put_contents($this->version_path . $filename, json_encode($snapshot, JSON_PRETTY_PRINT));
+    }
+
+    // Orquestar la actualización del archivo de la versión
+    public function updateVersionFile(string $filename)
+    {
+        $snapshot = json_decode(file_get_contents($this->version_path . $filename), true);
+        $diff = $this->getDiff($snapshot['data']);
+        if(count($diff) == 0)
+        {
+            return "No differences to apply.";
+        }
+        $this->applyDiff($diff['data']);
+    }
+
+    // Get file version files list
+    /**
+     * Get the file list in DESC order
+     * @return string[]
+     */
+    public function getVersionFileList()
+    {
+        // Get all file of current directory
+        $files = scandir($this->version_path, SCANDIR_SORT_DESCENDING);
+    
+        // Remove directories '.' y '..' from the list
+        $files = array_diff($files, ['.', '..']);
+    
+        // Reindex the array to get consicutive index.
+        $files = array_values($files);
+    
+        return $files;
+    }
 }
